@@ -3,7 +3,7 @@ pipeline {
             label 'kubernetes-slave'
         }
     parameters {
-        choice(name:'scm',choices:'git\nsvn',description:'代码分支管理系统类型')
+        choice(name:'scm',choices:'git\nsvn',description:'代码分支管理系统类型。。。。。。。。。。。。。。。。。。。。。')
         string(name:'scm_branch',defaultValue:'master',description:'分支，svn不需要填')
         string(name:'scm_credentialId',defaultValue:'git-java-demo',description:'代码仓库凭据ID')
         string(name:'scm_url',defaultValue:'https://github.com/RandyWithZero/qxj_demo.git',description:'代码地址')
