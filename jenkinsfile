@@ -120,6 +120,11 @@ pipeline {
     }
     stages {
         stage('代码检出') {
+            when { 
+                expression { 
+                    return params.scm_enable 
+                } 
+            }
             steps{
                 script{
                     if (params.scm=='svn'){
@@ -132,6 +137,11 @@ pipeline {
            
         }
         stage('代码编译') {
+            when { 
+                expression { 
+                    return params.compile_enable 
+                } 
+            }
             steps {
                 script{
                     sh "docker login -u $BITBUCKET_COMMON_CREDS_USR -p $BITBUCKET_COMMON_CREDS_PSW $REGISTRY_URL"
@@ -143,6 +153,11 @@ pipeline {
             }
         }
         stage('镜像构建') {
+            when { 
+                expression { 
+                    return params.image_build_enable 
+                } 
+            }
             steps {
                  sh "echo '${params.image_build_dockerfile}' > dockerfile"
                  sh "docker build -t $REGISTRY_URL${params.image_registry_path}/${params.image_build_image_name}:${params.image_build_image_tag} ."
@@ -152,6 +167,11 @@ pipeline {
         }
        
         stage('发布应用'){
+            when {
+                expression { 
+                    return params.deploy_enable 
+                } 
+            }
             steps{
                  withDockerContainer(args: "-e API_SERVER=${params.deploy_kube_api_server} -e TOKEN=${params.deploy_kube_token} -e CA_DATA=${params.deploy_kube_ca_data}", 
                  image: "${params.deploy_env_image}"){
