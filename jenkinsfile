@@ -1,0 +1,82 @@
+pipeline {
+    agent {
+            label 'kubernetes-slave'
+        }
+    parameters {
+        choice(name:'scm',choices:'git\nsvn',description:'代码分支管理系统类型')
+        string(name:'scm_branch',defaultValue:'master',description:'分支，svn不需要填')
+        string(name:'scm_credentialId',defaultValue:'git-java-demo',description:'代码仓库凭据ID')
+        string(name:'scm_url',defaultValue:'https://github.com/RandyWithZero/qxj_demo.git',description:'代码地址')
+        string(name:'registry_url',defaultValue:'registry.tongtech.com',description:'镜像仓库地址')
+        string(name:'registry_credentialId',defaultValue:'harbor',description:'镜像仓库凭据ID')
+        string(name:'compile_env_image',defaultValue:'registry.tongtech.com/pub/maven:3.3.3',description:'编译环境镜像')
+        string(name:'compile_cmd',defaultValue:'mvn clean package -Dmaven.test.skip=true',description:'编译命令')
+        string(name:'maven_local_repository',defaultValue:'/root/.m2',description:'maven本地缓存库')
+        text(name:'image_build_dockerfile',defaultValue:'FROM registry.cn-beijing.aliyuncs.com/1apps/openjdk:11-jre-slim\nMAINTAINER wshaoqi@tongtech.com\nADD ./target/qxj-1.0.jar /\nCMD java -jar /qxj-1.0.jar',description:'构建镜像的Dockerfile内容')
+        string(name:'image_build_image_name',defaultValue:'test1',description:'构建镜像的名称,registry.tongtech.com/test/test1:latest,则名称为test1')
+        string(name:'image_build_image_tag',defaultValue:'latest',description:'构建镜像的标签,registry.tongtech.com/test/test1:latest,则标签为latest')
+        string(name:'image_registry_path',defaultValue:'/test',description:'镜像上传到镜像库的路径，如需要上传的镜像地址为registry.tongtech.com/test/test1:latest,则路径为/test')
+        string(name:'deploy_env_image',defaultValue:'registry.tongtech.com/pub/cmp-kubectl:latest',description:'k8s应用部署执行环境镜像')
+        string(name:'deploy_kube_api_server',defaultValue:'https://168.1.9.50:6444',description:'k8s应用部署k8s集群apiserver访问地址')
+        text(name:'deploy_kube_token',defaultValue:'ZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNkltcFRXbVkzTm5SUk1FdEpjRk55VnpCTlJEVlZSMjB6Wm1KUGQwdHBXRFV3UWpoVlkwdERTR3BaTW1zaWZRLmV5SnBjM01pT2lKcmRXSmxjbTVsZEdWekwzTmxjblpwWTJWaFkyTnZkVzUwSWl3aWEzVmlaWEp1WlhSbGN5NXBieTl6WlhKMmFXTmxZV05qYjNWdWRDOXVZVzFsYzNCaFkyVWlPaUowWlhOMElpd2lhM1ZpWlhKdVpYUmxjeTVwYnk5elpYSjJhV05sWVdOamIzVnVkQzl6WldOeVpYUXVibUZ0WlNJNkluUmxjM1F0YzJFdGRHOXJaVzR0TjJOdFkySWlMQ0pyZFdKbGNtNWxkR1Z6TG1sdkwzTmxjblpwWTJWaFkyTnZkVzUwTDNObGNuWnBZMlV0WVdOamIzVnVkQzV1WVcxbElqb2lkR1Z6ZEMxellTSXNJbXQxWW1WeWJtVjBaWE11YVc4dmMyVnlkbWxqWldGalkyOTFiblF2YzJWeWRtbGpaUzFoWTJOdmRXNTBMblZwWkNJNkltUXdNell3WkRkaUxUa3daR0l0TkRnNU1pMWhNbVl3TFRNeVkyWXpNakl6TVdFell5SXNJbk4xWWlJNkluTjVjM1JsYlRwelpYSjJhV05sWVdOamIzVnVkRHAwWlhOME9uUmxjM1F0YzJFaWZRLklkbllnc21GWHB2eGlfTVB6QmpEWUJyTTh1TFpIWHNIUHVqejk5ZXBfQnJ4SElaV3ZsV1NkX3o4NVNWcDVXQ3NnMFpvTEE5b0tzZGVVd0xMSjdNb3FfSlVGSEdsLW5JdVRLMHpsQ1drUElpUVFaN2lvdG1aMDJ6WWNZUDNRRHhKQVBwZnAwdGswR3B0OVdIeU9zQjh6T0FwMFgzWjF1YkFBbGl3YnJIZjJ4MkxqbkRINGFGaXJWWWhUOF9XNlYxb0Zock5DYVlTN3duWFpfLTZ5NnJUT3dmMTE3LWY5X25oYU9lallvdlpNbTd2V0tCaGU4MnNjbHYzNWlCOWhyYTd4aFNBYmQ0czFkNFFHUjNSTVpmM3o3RFAwQTg0VnRfQkdYX0ZHOEtZa0lHclNvQTV4cXhKYVBFVWpNajlDbHNUdnZJZlZWOGtIT1VtM3JMcVlGM0Njdw==',description:'k8s应用部署认证Token')
+        text(name:'deploy_kube_ca_data',defaultValue:'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJd01ERXlNREF4TlRJMU5Gb1hEVE13TURFeE56QXhOVEkxTkZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTmVHCnAzdjRpQ09oVk5pNmxzZThrNjRtK2MwU2NGTFN3cTkrKzAwNnlYVmZIdUJFR3ZFcXg0Q2YvNGxkOWZwdnNad1QKUTNJakcyTlR1UkpOOFJaVGVSMkR6WWJIOFJWbk5SOE14bjdhR0IrSllFS1JIUHArcjlSU3VIa3NWYmhGNHlQVQptVTR1T2s1cTB5OEVycDI1UEp2bVBzRE5Hb29Wa0tCVnZlUzRxbGtUdjdoLzBmb3laUHpiVUFoR1l2QlExOVRBCm9zRlF4cWZHUnBiYjUxdzhTUmlNNkpoVXFsWVgraUQ1UnBOdGNFbmgyMEZKd2ZzVHhsVFArQXB5VWovSHJmWWgKcW5KdXZUenF2NXVBWko0TkdaUFFlQzVHL3l4Y1VHOFkwV1cxa0pxZitLR0ZyQS8rbExEYnIzYUJ6c1NSd2YxbApHS1dicjhjQ2NpVGNFRlhrUVRrQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFLNzk3d2daTE5jU1AveXRHUVZ0QTRHQWloSVQKejhhSy9WdTluUXZmUlZXUll3YkJZS2tFc2ZWOTdKWDNvSzR4V0RRNHRhSmJsQmFCY0xBa28rcm9CSmd2UTNyRQpWb1pmam50SHVFVE53VThURVpJRkh5UkVIWFJYVGlQTnNoZC8vTVFwMXltYVUwMEtSMXNMZ2FqaldkZDE4N2xaCjBlZlpBSHpwRFRJYzNia1F2TmZURTFYL0ZqcVB0OE1pTzNlbWREb0Y3VGtnZWFZRXpibHhUdmVYaWNLcWNIYkwKWGVtdUVlVDFRR2JGUVBUMktYdFdCUExSejlIeXE3QzZETTVvVUtDYlltZlc4QmNGdS9nL2l6WWpXWnJwTjZ6MgpYVmlRTEpXbmZZQ3E3Mmhwa0llbkhTN0k1TWFvVGIrdGxCdkZtZlVDaXlEWlVoSEVrdndnZ0t3U3BnVT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=',description:'k8s应用部署访问k8s证书')
+        string(name:'deploy_kube_namespace',defaultValue:'test',description:'k8s应用部署命名空间')
+    }
+    environment{
+        REGISTRY_URL = "${params.registry_url}"
+        BITBUCKET_COMMON_CREDS = credentials("${params.registry_credentialId}")
+        BUILDED_IMAGE = "${params.registry_url}${params.image_registry_path}/${params.image_build_image_name}:${params.image_build_image_tag}"
+        DEPLOY_KUBE_NAMESPACE = "${params.deploy_kube_namespace}"
+    }
+    stages {
+        stage('代码检出') {
+            steps{
+                script{
+                    if (params.scm=='svn'){
+                        checkout([$class: 'SubversionSCM', additionalCredentials: [], excludedCommitMessages: '', excludedRegions: '', excludedRevprop: '', excludedUsers: '', filterChangelog: false, ignoreDirPropChanges: false, includedRegions: '', locations: [[cancelProcessOnExternalsFail: true, credentialsId: "${params.scm_credentialId}", depthOption: 'infinity', ignoreExternalsOption: true, local: '.', remote: "${params.scm_url}"]], quietOperation: true, workspaceUpdater: [$class: 'UpdateUpdater']])
+                    }else if(params.scm=='git'){
+                        checkout([$class: "GitSCM", branches: [[name: "*/${params.scm_branch}"]],userRemoteConfigs: [[credentialsId: "${params.scm_credentialId}", url: "${params.scm_url}" ]]])
+                    }
+                }
+            }
+           
+        }
+        stage('代码编译') {
+            steps {
+                script{
+                    sh "docker login -u $BITBUCKET_COMMON_CREDS_USR -p $BITBUCKET_COMMON_CREDS_PSW $REGISTRY_URL"
+                    withDockerContainer(args: "-v ${params.maven_local_repository}:/root/.m2", image: "${params.compile_env_image}") {
+                        sh "${params.compile_cmd}"
+                    }
+                }
+                
+            }
+        }
+        stage('镜像构建') {
+            steps {
+                 sh "echo '${params.image_build_dockerfile}' > dockerfile"
+                 sh "docker build -t $REGISTRY_URL${params.image_registry_path}/${params.image_build_image_name}:${params.image_build_image_tag} ."
+                 sh "docker push  $REGISTRY_URL${params.image_registry_path}/${params.image_build_image_name}:${params.image_build_image_tag}"
+                 sh "docker rmi -f $REGISTRY_URL${params.image_registry_path}/${params.image_build_image_name}:${params.image_build_image_tag}"
+            }
+        }
+       
+        stage('发布应用'){
+            steps{
+                 withDockerContainer(args: "-e API_SERVER=${params.deploy_kube_api_server} -e TOKEN=${params.deploy_kube_token} -e CA_DATA=${params.deploy_kube_ca_data}", 
+                 image: "${params.deploy_env_image}"){
+                    sh '''
+                    SED1="s!@namespace@!$DEPLOY_KUBE_NAMESPACE!g"
+                    SED2="s!@image@!$BUILDED_IMAGE!g"
+                    for y in `ls $WORKSPACE/resources`
+                    do
+                        sed -i  "$SED1" $WORKSPACE/resources/$y
+                        sed -i  "$SED2" $WORKSPACE/resources/$y
+                    done
+                    kubectl apply -f $WORKSPACE/resources -n $DEPLOY_KUBE_NAMESPACE
+                    '''
+                 }
+            }
+        }
+    }
+}
